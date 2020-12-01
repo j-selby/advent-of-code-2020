@@ -4,8 +4,10 @@ fn main() {
 
     for num in &numbers {
         for other_num in &numbers {
-            if num + other_num == 2020 {
-                println!("{} * {} = {}", num, other_num, num * other_num);
+            for third_num in &numbers {
+                if num + other_num + third_num == 2020 {
+                    println!("{} * {} * {} = {}", num, other_num, third_num, num * other_num * third_num);
+                }
             }
         }
     }
