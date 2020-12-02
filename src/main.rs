@@ -1,5 +1,3 @@
-#![feature(str_split_once)]
-
 use regex::Regex;
 
 fn main() {
@@ -9,24 +7,19 @@ fn main() {
 
     let result = input.lines()
         .map(|line| {
-            println!("{:?}", line);
             // Parse line
             let captures = re.captures(line).expect("Failed to parse password");
-            let start : i32 = captures.name("from").expect("No from range").as_str().parse()
+            let start : usize = captures.name("from").expect("No from range").as_str().parse()
                 .expect("Failed to parse starting number");
-            let end : i32 = captures.name("to").expect("No to range").as_str().parse()
+            let end : usize = captures.name("to").expect("No to range").as_str().parse()
                 .expect("Failed to parse ending number");
             let policy = captures.name("policy").expect("No match letter").as_str();
             let password = captures.name("password").expect("No password").as_str();
 
-            // Find policy matches
-            println!("{} - {} ({:?}): {:?}", start, end, policy, password);
+            let first = password.chars().nth(start - 1) == policy.chars().next();
+            let second = password.chars().nth(end - 1) ==  policy.chars().next();
 
-            let count = password.matches(policy).count() as i32;
-            let metric = if count >= start && count <= end {true} else {false};
-            println!("Count {}: {}", count, metric);
-
-            metric
+            (first && !second) || (second && !first)
         })
         .filter(|x| *x)
         .count();
