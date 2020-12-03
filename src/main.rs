@@ -3,26 +3,23 @@ use regex::Regex;
 fn main() {
     let mut input = std::fs::read_to_string("input").expect("Failed to read input");
 
-    let re = Regex::new(r"^(?P<from>[0-9]+)-(?P<to>[0-9]+) (?P<policy>\w): (?P<password>.*)$").unwrap();
+    let map: Vec<Vec<bool>> = input.lines().map(|x|
+        x.trim().chars().map(|x| if x == '#' { true } else { false }).collect()
+    ).collect();
 
-    let result = input.lines()
-        .map(|line| {
-            // Parse line
-            let captures = re.captures(line).expect("Failed to parse password");
-            let start : usize = captures.name("from").expect("No from range").as_str().parse()
-                .expect("Failed to parse starting number");
-            let end : usize = captures.name("to").expect("No to range").as_str().parse()
-                .expect("Failed to parse ending number");
-            let policy = captures.name("policy").expect("No match letter").as_str();
-            let password = captures.name("password").expect("No password").as_str();
+    let (mut x, mut y) = (0, 0);
+    let (x_pitch, y_pitch) = (3, 1);
 
-            let first = password.chars().nth(start - 1) == policy.chars().next();
-            let second = password.chars().nth(end - 1) ==  policy.chars().next();
+    let mut trees = 0;
+    while y < map.len() {
+        let line = &map[y];
+        if line[x % line.len()] {
+            trees += 1;
+        }
 
-            (first && !second) || (second && !first)
-        })
-        .filter(|x| *x)
-        .count();
+        x += x_pitch;
+        y += y_pitch;
+    }
 
-    println!("input: {:?}", result);
+    println!("Trees: {}", trees);
 }
