@@ -1,143 +1,65 @@
 #![feature(str_split_once)]
 
-use regex::{Captures, Regex};
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::str::FromStr;
-
-/// A passport rule, from passport metadata, verifies both a regular expression, and optionally,
-/// an additional validator.
-struct PassportRule<'key_duration, 'regex_duration> {
-    key: &'key_duration str,
-    regex: &'regex_duration Regex,
-    validator: Option<Box<dyn Fn(Captures) -> bool>>,
+#[derive(Debug)]
+struct Seat {
+    row: u32,
+    column: u32
 }
 
-impl<'key_duration, 'regex_duration> PassportRule<'key_duration, 'regex_duration> {
-    fn new(
-        key: &'key_duration str,
-        regex: &'regex_duration Regex,
-        validator: Option<Box<dyn Fn(Captures) -> bool>>,
-    ) -> Self {
-        PassportRule {
-            key,
-            regex,
-            validator,
-        }
+impl Seat {
+    fn get_seat_id(&self) -> u32 {
+        self.row * 8 + self.column
     }
-
-    // Evaluates
-    fn evaluate(&self, map: &HashMap<&str, &str>) -> bool {
-        // Make sure the map has an entry
-        match map.get(self.key) {
-            Some(value) => {
-                // Make sure the regex matches
-                match self.regex.captures(value) {
-                    Some(entries) => {
-                        // If there is a custom validator, check that, else pass the rule
-                        match &self.validator {
-                            &Some(ref validator) => validator(entries),
-                            _ => true,
-                        }
-                    }
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
-    }
-}
-
-// Creates a passport rule with fixed logic which validates that a integer capture group from the regex
-// matches a range.
-fn new_range_passport_rule<'key_length, 'regex_length, RangeKind: 'static + Ord + FromStr>(
-    key: &'key_length str,
-    regex: &'regex_length Regex,
-    start: RangeKind,
-    end: RangeKind,
-) -> PassportRule<'key_length, 'regex_length>
-where
-    <RangeKind as FromStr>::Err: Debug,
-{
-    PassportRule::new(
-        key,
-        regex,
-        Some(Box::new(move |captures: Captures| {
-            let value = captures
-                .get(1)
-                .expect("Failed to get year component")
-                .as_str()
-                .parse::<RangeKind>()
-                .expect("Failed to parse year");
-            value >= start && value <= end
-        })),
-    )
 }
 
 fn main() {
     let input = std::fs::read_to_string("input").expect("Failed to read input");
 
-    // Rule regex
-    let year_regex = Regex::new(r"^([1-9][0-9]{3})$").expect("Bad year regex");
-    let height_regex = Regex::new(r"^([0-9]+)(in|cm)$").expect("Bad height regex");
-    let hair_colour_regex = Regex::new(r"^#([0-9a-fA-F]{6})$").expect("Bad hair colour regex");
-    let eye_colour_regex =
-        Regex::new(r"^(amb|blu|brn|gry|grn|hzl|oth)$").expect("Bad height regex");
-    let passport_id_regex = Regex::new(r"^([0-9]{9})$").expect("Bad passport ID");
+    let result = input.lines()
+        .map(|line| {
+            let (mut row_min, mut row_max) = (0, 127);
+            let (mut column_min, mut column_max) = (0, 7);
 
-    // The actual, executable rules
-    let rules = [
-        new_range_passport_rule("byr", &year_regex, 1920, 2002),
-        new_range_passport_rule("iyr", &year_regex, 2010, 2020),
-        new_range_passport_rule("eyr", &year_regex, 2020, 2030),
-        PassportRule::new(
-            "hgt",
-            &height_regex,
-            Some(Box::new(|height_captures: Captures| {
-                let value = height_captures
-                    .get(1)
-                    .expect("Failed to get height value")
-                    .as_str()
-                    .parse::<i32>()
-                    .expect("Failed to parse height");
-                let suffix = height_captures
-                    .get(2)
-                    .expect("Failed to get height unit")
-                    .as_str();
+            let row_div = line.chars().take(7);
+            let col_div = line.chars().skip(7).take(3);
 
-                let (min, max) = if suffix == "cm" { (150, 193) } else { (59, 76) };
-
-                value >= min && value <= max
-            })),
-        ),
-        PassportRule::new("hcl", &hair_colour_regex, None),
-        PassportRule::new("ecl", &eye_colour_regex, None),
-        PassportRule::new("pid", &passport_id_regex, None),
-    ];
-
-    // Convert input into dictionaries, split by blank lines
-    let valid_passports = input
-        .split("\n\n")
-        .map(|entry| {
-            entry
-                .split_whitespace()
-                .filter(|entry| !entry.is_empty())
-                .map(|pair| pair.split_once(":").expect("Invalid key-value pair"))
-                .collect::<HashMap<_, _>>()
-        })
-        .filter(|passport| {
-            // Evaluate each passport rule and only return if all rules match
-            let mut all_validate = true;
-            for rule in &rules {
-                if !rule.evaluate(passport) {
-                    all_validate = false;
-                    break;
+            for row_option in row_div {
+                let diff = (row_max - row_min) + 1;
+                match row_option {
+                    'F' => {
+                        row_max -= diff / 2;
+                    }
+                    'B' => {
+                        row_min += diff / 2;
+                    }
+                    x => panic!("Bad row char: {:?}", x)
                 }
             }
 
-            all_validate
-        })
-        .count();
+            for col_option in col_div {
+                let diff = (column_max - column_min) + 1;
+                match col_option {
+                    'L' => {
+                        column_max -= diff / 2;
+                    }
+                    'R' => {
+                        column_min += diff / 2;
+                    }
+                    x => panic!("Bad col char: {:?}", x)
+                }
+            }
 
-    println!("Valid passports: {}", valid_passports);
+
+            let seat =
+                Seat {
+                    row: row_min,
+                    column: column_min
+                };
+
+            println!("{:?} = {:?}", line, seat);
+
+            seat
+        }).map(|x| x.get_seat_id()).max(); //.collect::<Vec<_>>();
+
+    println!("Result: {:?}", result);
 }
