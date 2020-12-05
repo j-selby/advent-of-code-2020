@@ -15,7 +15,7 @@ impl Seat {
 fn main() {
     let input = std::fs::read_to_string("input").expect("Failed to read input");
 
-    let result = input.lines()
+    let mut result = input.lines()
         .map(|line| {
             let (mut row_min, mut row_max) = (0, 127);
             let (mut column_min, mut column_max) = (0, 7);
@@ -59,7 +59,14 @@ fn main() {
             println!("{:?} = {:?}", line, seat);
 
             seat
-        }).map(|x| x.get_seat_id()).max(); //.collect::<Vec<_>>();
+        }).map(|x| x.get_seat_id()).collect::<Vec<_>>();
 
-    println!("Result: {:?}", result);
+    result.sort();
+
+    // Find a "hole" in result
+    for i in 1 .. result.len() - 1 {
+        if result[i - 1] + 1 != result[i] {
+            println!("Found a gap between {} and {}", result[i - 1], result[i])
+        }
+    }
 }
