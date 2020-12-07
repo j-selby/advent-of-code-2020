@@ -24,7 +24,7 @@ fn parse_bag_name(input: &str) -> (&str, &str) {
 #[derive(Debug, Clone)]
 struct BagQuantity<'a> {
     name: (&'a str, &'a str),
-    qtr: i32,
+    qtr: usize,
 }
 
 impl<'a> BagQuantity<'a> {
@@ -46,6 +46,21 @@ struct Bag<'a> {
     name: (&'a str, &'a str),
     subtypes: Option<Vec<BagQuantity<'a>>>,
     parents: Option<Vec<BagQuantity<'a>>>,
+}
+
+// Counts the number of bags iteratively for the current bag count
+fn iterate_bag(all_bags: &HashMap<(&str, &str), Bag>, current_bag: &(&str, &str)) -> usize {
+    let bag = all_bags.get(current_bag).expect("Failed to get sub bag");
+    let mut count : usize = 0;
+
+    if let Some(sub_bags) = bag.subtypes.as_ref() {
+        for sub_bag in sub_bags {
+            count += sub_bag.qtr;
+            count += sub_bag.qtr * iterate_bag(all_bags, &sub_bag.name);
+        }
+    }
+
+    count
 }
 
 fn main() {
@@ -122,32 +137,7 @@ fn main() {
         }
     }
 
-    // Next, find our shiny gold bag
-    let root = &bags[&("shiny", "gold")];
-
-    let mut explored = HashSet::new();
-    let mut to_explore = root.parents.as_ref().expect("Bag should contain parents")
-        .to_owned();
-
-    let mut bag_count = 0;
-
-    // Crawl the tree iteratively
-    while let Some(next_bag) = to_explore.pop() {
-        if !explored.insert(next_bag.name) {
-            continue;
-        }
-
-        bag_count += 1;
-
-        // Lookup the next bag
-        let parent_bag = bags
-            .get(&next_bag.name)
-            .expect("Failed to find parent of next bag");
-
-        if let Some(parent_bags) = parent_bag.parents.as_ref() {
-            to_explore.extend(parent_bags.to_owned());
-        }
-    }
+    let bag_count = iterate_bag(&bags, &("shiny", "gold"));
 
     println!("Bags: {}", bag_count);
 }
