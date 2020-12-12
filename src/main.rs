@@ -1,4 +1,33 @@
-use itertools::Itertools;
+#![feature(option_expect_none)]
+
+use std::collections::HashMap;
+
+fn find_options(current_jolts : i64, input: &[i64], cache: &mut HashMap<i64, i64>) -> i64 {
+    if input.len() == 1 {
+        return 1;
+    }
+
+    input.iter()
+        .enumerate()
+        .filter(|(_index, adapter_jolts)| {
+            let diff = *adapter_jolts - current_jolts;
+            diff <= 3 && diff > 0
+        })
+        .map(|(index, adapter_jolts)| {
+            match cache.get(adapter_jolts) {
+                Some(x) => {
+                    *x
+                }
+                None => {
+                    let new_value = find_options(*adapter_jolts, &input[index + 1 ..], cache);
+                    cache.insert(*adapter_jolts, new_value)
+                        .expect_none("Cache should have been empty");
+                    new_value
+                }
+            }
+        })
+        .sum()
+}
 
 fn main() {
     let input = std::fs::read_to_string("input").expect("Failed to read input");
@@ -11,34 +40,11 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    input.push(0);
     input.push(input.iter().max().expect("Data set was empty!") + 3);
 
     input.sort();
 
-    // Calculate the deltas
-    let differences = input
-        .iter()
-        //.skip(1)
-        .zip(input.iter().skip(1))
-        .map(|(left, right)| right - left)
-        .collect::<Vec<_>>();
+    let mut map = HashMap::new();
 
-    let difference_options = differences
-        .iter()
-        .unique()
-        .map(|unique_option| {
-            (
-                unique_option,
-                differences.iter().filter(|x| *x == unique_option).count(),
-            )
-        })
-        .collect::<Vec<_>>();
-
-    // Multiply our options
-    let multiplied = difference_options
-        .iter()
-        .fold(1, |acc, (_, count)| acc * *count);
-
-    println!("{:?}", multiplied);
+    println!("options: {}", find_options(0, &input, &mut map));
 }
