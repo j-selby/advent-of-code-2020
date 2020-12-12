@@ -1,32 +1,8 @@
-#![feature(option_expect_none)]
-
-use std::collections::HashMap;
-
-fn find_options(current_jolts : i64, input: &[i64], cache: &mut HashMap<i64, i64>) -> i64 {
-    if input.len() == 1 {
-        return 1;
-    }
-
-    input.iter()
-        .enumerate()
-        .filter(|(_index, adapter_jolts)| {
-            let diff = *adapter_jolts - current_jolts;
-            diff <= 3 && diff > 0
-        })
-        .map(|(index, adapter_jolts)| {
-            match cache.get(adapter_jolts) {
-                Some(x) => {
-                    *x
-                }
-                None => {
-                    let new_value = find_options(*adapter_jolts, &input[index + 1 ..], cache);
-                    cache.insert(*adapter_jolts, new_value)
-                        .expect_none("Cache should have been empty");
-                    new_value
-                }
-            }
-        })
-        .sum()
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
+enum SeatType {
+    Empty,
+    Occupied,
+    Floor,
 }
 
 fn main() {
@@ -34,17 +10,94 @@ fn main() {
 
     let mut input = input
         .lines()
+        .filter(|line| !line.trim().is_empty())
         .map(|line| {
-            line.parse::<i64>()
-                .expect("Failed to parse number from input")
+            line.chars()
+                .map(|x| match x {
+                    'L' => SeatType::Empty,
+                    '#' => SeatType::Occupied,
+                    '.' => SeatType::Floor,
+                    x => panic!("Invalid char: {:?}", x),
+                })
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
 
-    input.push(input.iter().max().expect("Data set was empty!") + 3);
+    // Run iterations
+    let mut count = 0;
+    loop {
+        // Take a copy for stagnation checks
+        let last_input = input.clone();
 
-    input.sort();
+        for (y, row) in last_input.iter().enumerate() {
+            for (x, seat) in row.iter().enumerate() {
+                // Get adjacent seats
+                let mut adjacent_seats = 0;
 
-    let mut map = HashMap::new();
+                let y_abs = y as i32;
+                let x_abs = x as i32;
 
-    println!("options: {}", find_options(0, &input, &mut map));
+                for check_y in y_abs - 1..=y_abs + 1 {
+                    for check_x in x_abs - 1..=x_abs + 1 {
+                        if check_y >= 0
+                            && check_x >= 0
+                            && check_y < last_input.len() as i32
+                            && check_x < row.len() as i32
+                            && !(check_x == x_abs && check_y == y_abs)
+                        {
+                            if last_input[check_y as usize][check_x as usize] == SeatType::Occupied
+                            {
+                                adjacent_seats += 1;
+                            }
+                        }
+                    }
+                }
+
+                match seat {
+                    SeatType::Empty => {
+                        if adjacent_seats == 0 {
+                            input[y][x] = SeatType::Occupied;
+                        }
+                    }
+                    SeatType::Occupied => {
+                        if adjacent_seats >= 4 {
+                            input[y][x] = SeatType::Empty;
+                        }
+                    }
+                    SeatType::Floor => {
+                        // No-op
+                    }
+                }
+            }
+        }
+
+        count += 1;
+
+        println!("Completed iter: {}", count);
+
+        // Print state
+        for row in input.iter() {
+            for seat in row.iter() {
+                let char = match seat {
+                    SeatType::Empty => 'L',
+                    SeatType::Occupied => '#',
+                    SeatType::Floor => '.'
+                };
+                print!("{}", char);
+            }
+            println!();
+        }
+
+        if input == last_input {
+            println!("Completed after {} counts", count);
+            break;
+        }
+    }
+
+    let occupied_seats : usize = input
+        .iter()
+        .map(|x| x.iter().filter(|x| **x == SeatType::Occupied).count())
+        .sum();
+
+    println!("Seats occupied: {}", occupied_seats);
 }
