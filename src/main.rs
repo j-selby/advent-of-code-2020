@@ -23,6 +23,17 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
+    let direction_options = [
+        (-1, -1),
+        (0, -1),
+        (1, -1),
+        (-1, 0),
+        (1, 0),
+        (-1, 1),
+        (0, 1),
+        (1, 1)
+    ];
+
     // Run iterations
     let mut count = 0;
     loop {
@@ -34,21 +45,33 @@ fn main() {
                 // Get adjacent seats
                 let mut adjacent_seats = 0;
 
-                let y_abs = y as i32;
-                let x_abs = x as i32;
 
-                for check_y in y_abs - 1..=y_abs + 1 {
-                    for check_x in x_abs - 1..=x_abs + 1 {
+                for (direction_x, direction_y) in &direction_options {
+                    let mut check_x = x as i32;
+                    let mut check_y = y as i32;
+
+                    // Wait until we find a seat we can see
+                    'main_loop:
+                    loop {
+                        check_x += direction_x;
+                        check_y += direction_y;
+
                         if check_y >= 0
                             && check_x >= 0
                             && check_y < last_input.len() as i32
                             && check_x < row.len() as i32
-                            && !(check_x == x_abs && check_y == y_abs)
+                            //&& !(check_x == x_abs && check_y == y_abs)
                         {
-                            if last_input[check_y as usize][check_x as usize] == SeatType::Occupied
-                            {
-                                adjacent_seats += 1;
+                            match last_input[check_y as usize][check_x as usize] {
+                                SeatType::Empty => break 'main_loop,
+                                SeatType::Occupied => {
+                                    adjacent_seats += 1;
+                                    break 'main_loop;
+                                }
+                                SeatType::Floor => continue 'main_loop,
                             }
+                        } else {
+                            break 'main_loop;
                         }
                     }
                 }
@@ -60,7 +83,7 @@ fn main() {
                         }
                     }
                     SeatType::Occupied => {
-                        if adjacent_seats >= 4 {
+                        if adjacent_seats >= 5 {
                             input[y][x] = SeatType::Empty;
                         }
                     }
