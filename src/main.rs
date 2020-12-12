@@ -1,14 +1,3 @@
-/// Converts the ships heading into a distance "delta".
-fn heading_to_delta(heading: i32) -> (i32, i32) {
-    match heading {
-        0 => (0, -1),
-        90 => (1, 0),
-        180 => (0, 1),
-        270 => (-1, 0),
-        x => panic!("Bad heading: {}", x)
-    }
-}
-
 /// Converts a heading into an absolute figure.
 ///
 /// e.g.
@@ -24,7 +13,7 @@ fn absolute_heading(mut heading: i32) -> i32 {
     heading % 360
 }
 
-#[derive(Debug)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
 enum ActionType {
     North,
     South,
@@ -66,27 +55,42 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mut heading = 90;
     let (mut x, mut y) = (0i32, 0i32);
+    let (mut way_x, mut way_y) = (10i32, -1i32);
 
     for action in input {
         println!("Executing action: {:?}", action);
 
         match action.kind {
-            ActionType::North => y -= action.value,
-            ActionType::South => y += action.value,
-            ActionType::East => x += action.value,
-            ActionType::West => x -= action.value,
-            ActionType::Left => heading = absolute_heading(heading - action.value),
-            ActionType::Right => heading = absolute_heading(heading + action.value),
+            ActionType::North => way_y -= action.value,
+            ActionType::South => way_y += action.value,
+            ActionType::East => way_x += action.value,
+            ActionType::West => way_x -= action.value,
+            ActionType::Left | ActionType::Right => {
+                let mut degrees = if action.kind == ActionType::Left {
+                    absolute_heading(-action.value)
+                } else {
+                    action.value
+                };
+
+                while degrees > 0 {
+                    let old_x = way_x;
+                    let old_y = way_y;
+
+                    way_y = old_x;
+                    way_x = -old_y;
+
+                    degrees -= 90;
+                }
+            },
             ActionType::Forward => {
-                let (x_delta, y_delta) = heading_to_delta(heading);
-                x += x_delta * action.value;
-                y += y_delta * action.value;
+                x += way_x * action.value;
+                y += way_y * action.value;
             }
         }
 
         println!("New location: {} x {}", x, y);
+        println!("Way: {} x {}", way_x, way_y);
     }
 
     println!("Distance: {}", x.abs() + y.abs());
