@@ -8,6 +8,25 @@ enum Instruction {
     Assignment { index: i64, value: i64 },
 }
 
+fn emit_address(mut address: i64, mask : &String, mask_offset: usize, addresses : &mut Vec<i64>) {
+    for (offset, char) in mask.chars().enumerate().skip(mask_offset) {
+        match char {
+            'X' => {
+                // Fork with this bit set to 1:
+                emit_address(address | (1 << offset), mask, offset + 1, addresses);
+
+                // Emit with this bit set to 0:
+                address &= !(1 << offset);
+            },
+            '1' => address |= (1 << offset),
+            '0' => { /* no-op */ },
+            x => panic!("Bad char: {}", x),
+        }
+    }
+
+    addresses.push(address);
+}
+
 fn main() {
     let input = std::fs::read_to_string("input").expect("Failed to read input");
 
@@ -39,26 +58,22 @@ fn main() {
     let mut current_mask = String::new();
 
     let mut memory = HashMap::new();
+    let mut addresses = Vec::new();
 
     for instr in input {
+        addresses.clear();
+
         match instr {
             Instruction::Mask(mask) => current_mask = mask,
             Instruction::Assignment { index, mut value } => {
-                // Mask bits
-                for (offset, char) in current_mask.chars().enumerate() {
-                    match char {
-                        'X' => continue,
-                        '1' => value |= (1 << offset),
-                        '0' => value &= !(1 << offset),
-                        x => panic!("Bad char: {}", x),
-                    }
-                }
+                emit_address(index, &current_mask, 0, &mut addresses);
 
-                memory.insert(index, value);
+                for address in &addresses {
+                    memory.insert(*address, value);
+                }
             }
         }
     }
-
 
     println!("{:?}", memory.values().sum::<i64>());
 }
