@@ -24,13 +24,13 @@ fn main() {
 
     println!("Starting turn: {}", turn);
 
-    while turn <= 2020 {
+    while turn <= 30000000 {
         let output_num = match last_spoken_turn {
             Some(last_turn) => turn - last_turn - 1,
             None => 0
         };
 
-        println!("Turn {}: last {}, current {}, was first: {:?}", turn, last_spoken, output_num, last_spoken_turn);
+        //println!("Turn {}: last {}, current {}, was first: {:?}", turn, last_spoken, output_num, last_spoken_turn);
 
         last_spoken_turn = last_spoken_turns.insert(output_num, turn);
 
