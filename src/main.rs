@@ -1,52 +1,64 @@
-fn modulo(mut x : i64, m : i64) -> i64 {
-    while x < 0 {
-        x += m;
-    }
+#![feature(str_split_once)]
 
-    x % m
+use std::collections::HashMap;
+
+#[derive(Debug)]
+enum Instruction {
+    Mask(String),
+    Assignment { index: i64, value: i64 },
 }
 
 fn main() {
-    let input = std::fs::read_to_string("input")
-        .expect("Failed to read input");
+    let input = std::fs::read_to_string("input").expect("Failed to read input");
 
-    let mut input = input.lines();
+    let input: Vec<Instruction> = input
+        .lines()
+        .filter(|x| !x.trim().is_empty())
+        .map(|line| {
+            let (assign, value) = line.split_once(" = ").expect("Failed to find separator");
 
-    let earliest_time = input
-        .next()
-        .expect("Failed to find earliest time")
-        .parse::<u64>()
-        .expect("Failed to parse earliest time");
-
-    let bus_times: Vec<Option<u64>> = input
-        .next()
-        .expect("Failed to find bus IDs")
-        .split(",")
-        .map(|x| {
-            if x == "x" {
-                None
+            if assign == "mask" {
+                Instruction::Mask(value.chars().rev().collect::<String>())
             } else {
-                Some(x.parse().expect("Failed to parse bus ID"))
+                let index = assign
+                    .strip_prefix("mem[")
+                    .expect("Not a mem instruction?")
+                    .strip_suffix("]")
+                    .expect("Not a mem instruction (missing end)?")
+                    .parse::<i64>()
+                    .expect("Failed to parse index");
+
+                Instruction::Assignment {
+                    index,
+                    value: value.parse().expect("Failed to parse value"),
+                }
             }
         })
         .collect();
 
-    let bus_times_n_offset : Vec<(usize, u64)> = bus_times.iter().enumerate()
-        .filter(|(_x, delta)| delta.is_some())
-        .map(|(x, delta)| (x, delta.unwrap()))
-        .collect();
+    let mut current_mask = String::new();
 
-    let u : Vec<i64> = bus_times_n_offset.iter()
-        .map(|(x, delta)| modulo(-(*x as i64), *delta as i64))
-        .collect();
+    let mut memory = HashMap::new();
 
-    let s : Vec<i64> = bus_times_n_offset.iter()
-        .map(|(_x, delta)| *delta as i64)
-        .collect();
+    for instr in input {
+        match instr {
+            Instruction::Mask(mask) => current_mask = mask,
+            Instruction::Assignment { index, mut value } => {
+                // Mask bits
+                for (offset, char) in current_mask.chars().enumerate() {
+                    match char {
+                        'X' => continue,
+                        '1' => value |= (1 << offset),
+                        '0' => value &= !(1 << offset),
+                        x => panic!("Bad char: {}", x),
+                    }
+                }
 
-    // Fuck number theory:
-    let solution = ring_algorithm::chinese_remainder_theorem(&u, &s);
+                memory.insert(index, value);
+            }
+        }
+    }
 
-    // 604510652639806
-    println!("{:?}", solution);
+
+    println!("{:?}", memory.values().sum::<i64>());
 }
